@@ -2,12 +2,14 @@ import telebot
 from telebot import types
 import os
 
+# Получаем токен и chat_id из переменных окружения Render
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}
 
+# Стартовое меню
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -17,13 +19,15 @@ def start(message):
     markup.add(types.KeyboardButton("Оставить обращение/комментарий"))
     bot.send_message(message.chat.id, "Здравствуйте! Выберите действие:", reply_markup=markup)
 
+# Обработка заявки на фото/видео/рилс
 @bot.message_handler(func=lambda msg: msg.text in [
     "Подать заявку на фото",
     "Подать заявку на видео",
     "Подать заявку на рилс"
 ])
 def start_request(message):
-    user_data[message.chat.id] = {"type": msg_type = message.text.replace("Подать заявку на ", "")}
+    msg_type = message.text.replace("Подать заявку на ", "")
+    user_data[message.chat.id] = {"type": msg_type}
     msg = bot.send_message(message.chat.id, "📅 Укажите дату съёмки (например: 2025-12-01):")
     bot.register_next_step_handler(msg, ask_place)
 
@@ -45,7 +49,7 @@ def ask_comment(message):
 def finish_request(message):
     user_data[message.chat.id]["comment"] = message.text or "—"
     d = user_data[message.chat.id]
-    username = message.from_user.username or f"{message.from_user.first_name}"
+    username = message.from_user.username or message.from_user.first_name
     text = (
         "📌 *Новая заявка на съёмку*\n\n"
         f"🎬 Тип: {d['type']}\n"
@@ -58,6 +62,7 @@ def finish_request(message):
     bot.send_message(ADMIN_CHAT_ID, text, parse_mode="Markdown")
     bot.send_message(message.chat.id, "Спасибо, ваша заявка принята! С вами свяжутся в течение 3 дней.", reply_markup=types.ReplyKeyboardRemove())
 
+# Обработка комментариев/обращений
 @bot.message_handler(func=lambda msg: msg.text == "Оставить обращение/комментарий")
 def comment_start(message):
     msg = bot.send_message(message.chat.id, "Напишите ваше обращение:")
@@ -68,6 +73,7 @@ def send_comment(message):
     bot.send_message(ADMIN_CHAT_ID, f"📨 Новое обращение:\n{message.text}\nОт: @{message.from_user.username if message.from_user.username else username}")
     bot.send_message(message.chat.id, "Ваше сообщение отправлено!", reply_markup=types.ReplyKeyboardRemove())
 
+# Запуск бота
 if __name__ == "__main__":
     print("Бот запущен...")
     bot.infinity_polling()
