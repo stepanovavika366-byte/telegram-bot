@@ -2,8 +2,8 @@ import telebot
 from telebot import types
 import os
 
-TOKEN = os.getenv("8010505958:AAHbVmVaztm4C4wQNbrKCcGjmkh-RSa5etU")
-ADMIN_CHAT_ID = int(os.getenv("Chat id: -1003311939801"))
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
 bot = telebot.TeleBot(TOKEN)
 user_data = {}
@@ -65,10 +65,9 @@ def comment_start(message):
 
 def send_comment(message):
     username = message.from_user.username or message.from_user.first_name
-    bot.send_message(Chat id: -1003311939801, f"📨 Новое обращение:\n{message.text}\nОт: @{message.from_user.username if message.from_user.username else username}")
+    bot.send_message(ADMIN_CHAT_ID, f"📨 Новое обращение:\n{message.text}\nОт: @{message.from_user.username if message.from_user.username else username}")
     bot.send_message(message.chat.id, "Ваше сообщение отправлено!", reply_markup=types.ReplyKeyboardRemove())
 
 if __name__ == "__main__":
     print("Бот запущен...")
     bot.infinity_polling()
-
