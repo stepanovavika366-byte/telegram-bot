@@ -1,0 +1,74 @@
+import telebot
+from telebot import types
+import os
+
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
+
+bot = telebot.TeleBot(TOKEN)
+user_data = {}
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("Подать заявку на фото"))
+    markup.add(types.KeyboardButton("Подать заявку на видео"))
+    markup.add(types.KeyboardButton("Подать заявку на рилс"))
+    markup.add(types.KeyboardButton("Оставить обращение/комментарий"))
+    bot.send_message(message.chat.id, "Здравствуйте! Выберите действие:", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text in [
+    "Подать заявку на фото",
+    "Подать заявку на видео",
+    "Подать заявку на рилс"
+])
+def start_request(message):
+    user_data[message.chat.id] = {"type": msg_type = message.text.replace("Подать заявку на ", "")}
+    msg = bot.send_message(message.chat.id, "📅 Укажите дату съёмки (например: 2025-12-01):")
+    bot.register_next_step_handler(msg, ask_place)
+
+def ask_place(message):
+    user_data[message.chat.id]["date"] = message.text
+    msg = bot.send_message(message.chat.id, "📍 Укажите место проведения съёмки:")
+    bot.register_next_step_handler(msg, ask_time)
+
+def ask_time(message):
+    user_data[message.chat.id]["place"] = message.text
+    msg = bot.send_message(message.chat.id, "⏰ Укажите промежуток времени (например: 10:00-12:00):")
+    bot.register_next_step_handler(msg, ask_comment)
+
+def ask_comment(message):
+    user_data[message.chat.id]["time"] = message.text
+    msg = bot.send_message(message.chat.id, "📝 Пожелания и комментарии (можно оставить пустым):")
+    bot.register_next_step_handler(msg, finish_request)
+
+def finish_request(message):
+    user_data[message.chat.id]["comment"] = message.text or "—"
+    d = user_data[message.chat.id]
+    username = message.from_user.username or f"{message.from_user.first_name}"
+    text = (
+        "📌 *Новая заявка на съёмку*\n\n"
+        f"🎬 Тип: {d['type']}\n"
+        f"📅 Дата: {d['date']}\n"
+        f"📍 Место: {d['place']}\n"
+        f"⏰ Промежуток: {d['time']}\n"
+        f"📝 Комментарии: {d['comment']}\n\n"
+        f"👤 Клиент: @{message.from_user.username if message.from_user.username else username}"
+    )
+    bot.send_message(ADMIN_CHAT_ID, text, parse_mode="Markdown")
+    bot.send_message(message.chat.id, "Спасибо, ваша заявка принята! С вами свяжутся в течение 3 дней.", reply_markup=types.ReplyKeyboardRemove())
+
+@bot.message_handler(func=lambda msg: msg.text == "Оставить обращение/комментарий")
+def comment_start(message):
+    msg = bot.send_message(message.chat.id, "Напишите ваше обращение:")
+    bot.register_next_step_handler(msg, send_comment)
+
+def send_comment(message):
+    username = message.from_user.username or message.from_user.first_name
+    bot.send_message(ADMIN_CHAT_ID, f"📨 Новое обращение:\n{message.text}\nОт: @{message.from_user.username if message.from_user.username else username}")
+    bot.send_message(message.chat.id, "Ваше сообщение отправлено!", reply_markup=types.ReplyKeyboardRemove())
+
+if __name__ == "__main__":
+    print("Бот запущен...")
+    bot.infinity_polling()
+
